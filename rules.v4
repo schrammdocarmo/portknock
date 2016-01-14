@@ -1,0 +1,30 @@
+*filter
+:OUTPUT ACCEPT
+:INPUT DROP
+:FORWARD DROP
+:KNOCKING - [0:0]
+#  Allows all loopback (lo0) traffic and drop all traffic to 127/8 that doesn't use lo0
+-A INPUT -i lo -j ACCEPT
+-A INPUT ! -i lo -d 127.0.0.0/8 -j REJECT
+
+#  Accepts all established inbound connections
+-A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+# Allow webserver ports to the outside world
+-A INPUT -p tcp --dport 80 -s 0.0.0.0/0 -j ACCEPT
+-A INPUT -p tcp --dport 443 -s 0.0.0.0/0 -j ACCEPT
+
+# Allow ICMP
+-A INPUT -p icmp -s 0.0.0.0/0 -j ACCEPT
+
+######## TRAFFIC chain for Port Knocking.
+-A KNOCKING -m state --state NEW -p tcp --dport 22 -m recent --rcheck --seconds 50 --name knock4 -j ACCEPT
+-A KNOCKING -m state --state NEW -m tcp -p tcp --dport 24222 -m recent --rcheck --seconds 30 --name knock3 -m recent --name knock4 --set -j DROP
+-A KNOCKING -m state --state NEW -m tcp -p tcp --dport 33232 -m recent --rcheck --seconds 20 --name knock2 -m recent --name knock3 --set -j DROP
+-A KNOCKING -m state --state NEW -m tcp -p tcp --dport 55535 -m recent --rcheck --seconds 10 --name knock1 -m recent --name knock2 --set -j DROP
+-A KNOCKING -m state --state NEW -p tcp --dport 66333 -m recent --name knock1 --set -j DROP
+
+-A INPUT -j KNOCKING
+#########
+
+COMMIT
